@@ -959,6 +959,7 @@ async def start_urgent_problem_dialog(message: types.Message, state: FSMContext)
     await state.set_state(SupportStates.waiting_for_urgent)
 
 @dp.message(SupportStates.waiting_for_problem)
+@dp.message(SupportStates.waiting_for_problem)
 async def handle_problem_description(message: types.Message, state: FSMContext):
     """Обработка описания проблемы"""
     user_problem = message.text
@@ -987,13 +988,8 @@ async def handle_problem_description(message: types.Message, state: FSMContext):
         is_urgent=False
     )
     
-    # Показываем метрику уверенности для демонстрации
-    confidence_display = f"📊 <b>Уверенность ИИ:</b> {analysis['confidence']:.0%}"
-    
-    # Формируем ответ с метрикой уверенности
+    # Формируем ответ БЕЗ метрики уверенности для пользователя
     response_text = f"""🎯 <b>РЕЗУЛЬТАТ АНАЛИЗА</b>
-
-{confidence_display}
 
 📊 <b>Детали проблемы:</b>
 ├ Категория: <code>{analysis['category']}</code>
@@ -1005,7 +1001,7 @@ async def handle_problem_description(message: types.Message, state: FSMContext):
 
 ✅ <b>Это решение помогло решить вашу проблему?</b>"""
     
-    # Принимаем решение на основе уверенности (внутренняя метрика)
+    # Принимаем решение на основе уверенности (внутренняя метрика, не показывается пользователю)
     if knowledge_result['found'] and analysis['confidence'] > 0.7 and analysis['critical_level'] not in ['high', 'critical']:
         await message.answer(response_text, reply_markup=get_feedback_keyboard(), parse_mode="HTML")
         await state.set_state(SupportStates.evaluating_solution)
@@ -1028,17 +1024,13 @@ async def handle_urgent_problem_description(message: types.Message, state: FSMCo
     # Анализируем проблему через LLM (исправленная версия)
     analysis = await MockLLMService.analyze_problem(user_problem)
     
-    # Показываем метрику уверенности
-    await message.answer(f"📊 <b>Уверенность ИИ в анализе:</b> {analysis['confidence']:.0%}", parse_mode="HTML")
-    
     # ЖЕСТКИЙ ФИЛЬТР: только high/critical priority
     if analysis['critical_level'] not in ['high', 'critical']:
-        # Отклоняем обращение
+        # Отклоняем обращение (используем внутреннюю метрику, но не показываем пользователю)
         await message.answer(
             "❌ <b>Отклонено: проблема не соответствует критериям срочного обращения</b>\n\n"
             f"• Определенный приоритет: <b>{analysis['critical_level'].upper()}</b>\n"
-            f"• Категория: {analysis['category']}\n"
-            f"• Уверенность анализа: <b>{analysis['confidence']:.0%}</b>\n\n"
+            f"• Категория: {analysis['category']}\n\n"
             "<b>Срочные обращения принимаются ТОЛЬКО для:</b>\n"
             "• 🔴 Полной недоступности критичных систем\n"
             "• 🚨 Остановки бизнес-процессов\n"
@@ -1097,7 +1089,7 @@ ID: <code>{ticket['ticket_id']}</code>
     
     if escalate_result["success"]:
         await message.answer(
-            f"⚡ <b>Автоматически эскалировано на {escalate_result['new_line']} линию</b>",
+            f"⚡ <b>Автоматически эскалировано на 2-ю линию</b>",
             parse_mode="HTML"
         )
     
